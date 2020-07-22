@@ -33,8 +33,9 @@ The idea is that this will evolve into a continuous loop, where subsequent tourn
 To-do:
 * store tournament history
 * simulate additional seasons
-* improve result simulator with additional logic (to factor in current league position of each team)
-* improve coefficient calculation with additional logic (Elo-style rankings)
+* improve result simulator with additional logic (e.g. factor in current league position of each team)
+* improve coefficient calculation with additional logic (e.g. Elo-style scoring system)
+* improve penalty shootout logic (e.g. home/away advantage, teams take penalties in turns)
 * tidy up code
 
 Long-term:
