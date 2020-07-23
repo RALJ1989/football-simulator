@@ -41,6 +41,7 @@ class Team:
     def strength2(self):
         return round(2*(self.strength1 + ((self.strengthEq() - self.strength1)/10)), 0)/2
 
+
 # Define the initial team names and strengths
 liverpool = Team("Liverpool", 19)
 man_city = Team("Man City", 17)
@@ -100,24 +101,6 @@ leagueHeader = '        | STR | PL  | W   | D   | L   | GF  | GA  | GD  | PTS'
 # Define the league table sorting criteria
 tableSort = lambda team: (team.pts, (team.gd, (-team.strength1, team.name)))
 
-# Define factors for scoring algorithm
-homeAdvFactor = 1.2
-awayAdvFactor = 0.8
-
-def random_factor():
-    return random.randrange(0, 100)/100
-
-def home_goals(Team):
-    return round(random_factor() * homeAdvFactor * Team.strengthFactor * Team.lastGameFactor() * Team.formFactor())
-
-def away_goals(Team):
-    return round(random_factor() * awayAdvFactor * Team.strengthFactor * Team.lastGameFactor() * Team.formFactor())
-
-def neutral_goals(Team):
-    return round(random_factor() * Team.strengthFactor * Team.lastGameFactor() * Team.formFactor())
-
-def penalty():
-    return 1 if random.randrange(0, 100) > 25 else 0
 
 # Define group table format
 def groups_table():
@@ -138,129 +121,91 @@ def groups_table():
                         + '| ' + str(t.gd) + str(' ')*(4-len(str(t.gd))) + '| ' + str(t.pts) + str(' ')*(4-len(str(t.pts)))
             print(leagueRow)
 
+
+# Define factors for scoring algorithm
+homeAdvFactor = 1.2
+awayAdvFactor = 0.8
+
+
+def random_factor():
+    # return random decimal between 0 and 1
+    return random.randrange(0, 100)/100
+
+
+def home_goals(Team):
+    # algorithm for goals scored by home team
+    return round(random_factor() * homeAdvFactor * Team.strengthFactor * Team.lastGameFactor() * Team.formFactor())
+
+
+def away_goals(Team):
+    # algorithm for goals scored by away team
+    return round(random_factor() * awayAdvFactor * Team.strengthFactor * Team.lastGameFactor() * Team.formFactor())
+
+
+def neutral_goals(Team):
+    # algorithm for goals scored at neutral venue
+    return round(random_factor() * Team.strengthFactor * Team.lastGameFactor() * Team.formFactor())
+
+
+def penalty():
+    # 75% chance of scoring
+    return 1 if random.randrange(0, 100) > 25 else 0
+
+
 # Generate fixtures and scores
 matchdays = ['Matchday 1', 'Matchday 2', 'Matchday 3', 'Matchday 4', 'Matchday 5', 'Matchday 6']
-matchdayFixtures = [[0, 1, 2, 3], [3, 0, 1, 2], [0, 2, 1, 3], [2, 0, 3, 1], [1, 0, 3, 2], [0, 3, 2, 1]]
+matchdayFixtures = [[[0, 1], [2, 3]], [[3, 0], [1, 2]], [[0, 2], [1, 3]], [[2, 0], [3, 1]], [[1, 0], [3, 2]], [[0, 3], [2, 1]]]
 matchdayReference = 0
 for m in matchdays:
     print('\n' + matchdays[matchdayReference] + ':')
     groupIndex = 0
     for g in allGroups:
-        team1 = allGroups[groupIndex][matchdayFixtures[matchdayReference][0]]
-        team2 = allGroups[groupIndex][matchdayFixtures[matchdayReference][1]]
-        team3 = allGroups[groupIndex][matchdayFixtures[matchdayReference][2]]
-        team4 = allGroups[groupIndex][matchdayFixtures[matchdayReference][3]]
-        # Fixtures
         print('\n' + groupNames[groupIndex] + ' fixtures:')
-        print(team1.name + ' vs ' + team2.name)
-        print(team3.name + ' vs ' + team4.name)
-        # Scores
-        team1goals = home_goals(team1)
-        team2goals = home_goals(team2)
-        team3goals = home_goals(team3)
-        team4goals = home_goals(team4)
-        print('\n' + groupNames[groupIndex] + ' scores:')
-        print(team1.name + ' ' + str(team1goals) + '-' + str(team2goals) + ' ' + team2.name)
-        print(team3.name + ' ' + str(team3goals) + '-' + str(team4goals) + ' ' + team4.name)
-        # Update stats
-        if team1goals > team2goals:
-            team1.pl += 1
-            team1.w += 1
-            team1.gf += team1goals
-            team1.ga += team2goals
-            team1.gd += team1goals - team2goals
-            team1.pts += 3
-            team1.results.append(3)
-            team1.coefficient += 3 + (team1goals * 0.5)
-            team2.pl += 1
-            team2.l += 1
-            team2.gf += team2goals
-            team2.ga += team1goals
-            team2.gd += team2goals - team1goals
-            team2.results.append(0)
-            team2.coefficient += 1 + (team2goals * 0.5)
-        elif team1goals < team2goals:
-            team1.pl += 1
-            team1.l += 1
-            team1.gf += team1goals
-            team1.ga += team2goals
-            team1.gd += team1goals - team2goals
-            team1.results.append(0)
-            team1.coefficient += 1 + (team1goals * 0.5)
-            team2.pl += 1
-            team2.w += 1
-            team2.gf += team2goals
-            team2.ga += team1goals
-            team2.gd += team2goals - team1goals
-            team2.pts += 3
-            team2.results.append(3)
-            team2.coefficient += 3 + (team2goals * 0.5)
-        elif team1goals == team2goals:
-            team1.pl += 1
-            team1.d += 1
-            team1.gf += team1goals
-            team1.ga += team2goals
-            team1.pts += 1
-            team1.results.append(1)
-            team1.coefficient += 2 + (team1goals * 0.5)
-            team2.pl += 1
-            team2.d += 1
-            team2.gf += team2goals
-            team2.ga += team1goals
-            team2.pts += 1
-            team2.results.append(1)
-            team2.coefficient += 2 + (team2goals * 0.5)
-        else:
-            print('error')
-        if team3goals > team4goals:
-            team3.pl += 1
-            team3.w += 1
-            team3.gf += team3goals
-            team3.ga += team4goals
-            team3.gd += team3goals - team4goals
-            team3.pts += 3
-            team3.results.append(3)
-            team3.coefficient += 3 + (team3goals * 0.5)
-            team4.pl += 1
-            team4.l += 1
-            team4.gf += team4goals
-            team4.ga += team3goals
-            team4.gd += team4goals - team3goals
-            team4.results.append(0)
-            team4.coefficient += 1 + (team4goals * 0.5)
-        elif team3goals < team4goals:
-            team3.pl += 1
-            team3.l += 1
-            team3.gf += team3goals
-            team3.ga += team4goals
-            team3.gd += team3goals - team4goals
-            team3.results.append(0)
-            team3.coefficient += 1 + (team3goals * 0.5)
-            team4.pl += 1
-            team4.w += 1
-            team4.gf += team4goals
-            team4.ga += team3goals
-            team4.gd += team4goals - team3goals
-            team4.pts += 3
-            team4.results.append(3)
-            team4.coefficient += 3 + (team4goals * 0.5)
-        elif team3goals == team4goals:
-            team3.pl += 1
-            team3.d += 1
-            team3.gf += team3goals
-            team3.ga += team3goals
-            team3.pts += 1
-            team3.results.append(1)
-            team3.coefficient += 2 + (team3goals * 0.5)
-            team4.pl += 1
-            team4.d += 1
-            team4.gf += team4goals
-            team4.ga += team3goals
-            team4.pts += 1
-            team4.results.append(1)
-            team4.coefficient += 2 + (team4goals * 0.5)
-        else:
-            print('error')
+        for f in range(len(matchdayFixtures[matchdayReference])):
+            homeTeam = allGroups[groupIndex][matchdayFixtures[matchdayReference][f][0]]
+            awayTeam = allGroups[groupIndex][matchdayFixtures[matchdayReference][f][1]]
+            # Fixtures
+            print(homeTeam.name + ' vs ' + awayTeam.name)
+            # Scores
+            homeGoals = home_goals(homeTeam)
+            awayGoals = away_goals(awayTeam)
+            print(homeTeam.name + ' ' + str(homeGoals) + '-' + str(awayGoals) + ' ' + awayTeam.name)
+            # Update stats
+            homeTeam.pl += 1
+            homeTeam.gf += homeGoals
+            homeTeam.ga += awayGoals
+            homeTeam.gd += homeGoals - awayGoals
+            awayTeam.pl += 1
+            awayTeam.gf += awayGoals
+            awayTeam.ga += homeGoals
+            awayTeam.gd += awayGoals - homeGoals
+            if homeGoals > awayGoals:
+                homeTeam.w += 1
+                homeTeam.pts += 3
+                homeTeam.results.append(3)
+                homeTeam.coefficient += 3 + (homeGoals * 0.5)
+                awayTeam.l += 1
+                awayTeam.results.append(0)
+                awayTeam.coefficient += 1 + (awayGoals * 0.5)
+            elif homeGoals < awayGoals:
+                homeTeam.l += 1
+                homeTeam.results.append(0)
+                homeTeam.coefficient += 1 + (homeGoals * 0.5)
+                awayTeam.w += 1
+                awayTeam.pts += 3
+                awayTeam.results.append(3)
+                awayTeam.coefficient += 3 + (awayGoals * 0.5)
+            elif homeGoals == awayGoals:
+                homeTeam.d += 1
+                homeTeam.pts += 1
+                homeTeam.results.append(1)
+                homeTeam.coefficient += 2 + (homeGoals * 0.5)
+                awayTeam.d += 1
+                awayTeam.pts += 1
+                awayTeam.results.append(1)
+                awayTeam.coefficient += 2 + (awayGoals * 0.5)
+            else:
+                print('Unexpected match outcome')
         groupIndex += 1
     matchdayReference += 1
 
@@ -272,6 +217,79 @@ finalGroupD = sorted(groupD, key=tableSort, reverse=True)
 finalGroups = [finalGroupA, finalGroupB, finalGroupC, finalGroupD]
 
 print(groups_table())
+
+
+# Define penalty shootout structure
+def penalties(stage):
+    if stage == 'qf':
+        win_factor = 4.5
+        win_pen_factor = 3.5
+        lose_pen_factor = 2.5
+        lose_factor = 1.5
+        goals_factor = 0.75
+    elif stage == 'sf':
+        win_factor = 5
+        win_pen_factor = 4
+        lose_pen_factor = 3
+        lose_factor = 2
+        goals_factor = 1
+    elif stage == 'fin':
+        win_factor = 7
+        win_pen_factor = 6
+        lose_pen_factor = 4
+        lose_factor = 3
+        goals_factor = 2
+    else:
+        print('Unexpected tournament stage')
+
+    global winner
+    team1pens = 0
+    team2pens = 0
+    for i in range(0, 5):
+        team1pen = penalty()
+        team2pen = penalty()
+        if team1pen == 1:
+            team1pens += 1
+        else:
+            continue
+        if team2pen == 1:
+            team2pens += 1
+        else:
+            continue
+    if team1pens > team2pens:
+        print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
+        team1.coefficient += win_pen_factor + (team1goals * goals_factor)
+        team2.coefficient += lose_pen_factor + (team2goals * goals_factor)
+        winner = team1
+    elif team2pens > team1pens:
+        print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
+        team1.coefficient += lose_pen_factor + (team1goals * goals_factor)
+        team2.coefficient += win_pen_factor + (team2goals * goals_factor)
+        winner = team2
+    else:
+        while team1pens == team2pens:
+            team1pen = penalty()
+            team2pen = penalty()
+            if team1pen == 1:
+                team1pens += 1
+            else:
+                continue
+            if team2pen == 1:
+                team2pens += 1
+            else:
+                continue
+        if team1pens > team2pens:
+            print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
+            team1.coefficient += win_pen_factor + (team1goals * goals_factor)
+            team2.coefficient += lose_pen_factor + (team2goals * goals_factor)
+            winner = team1
+        elif team2pens > team1pens:
+            print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
+            team1.coefficient += lose_pen_factor + (team1goals * goals_factor)
+            team2.coefficient += win_pen_factor + (team2goals * goals_factor)
+            winner = team2
+    return winner
+
 
 # Quarter-final fixtures
 qF1 = [finalGroupA[0], finalGroupC[1]]
@@ -290,7 +308,7 @@ for q in quarterFinals:
     print('\n' + 'Quarter-final ' + str(quarterFinalNumber) + ':\n' + team1.name + ' vs ' + team2.name)
     # Score
     team1goals = home_goals(team1)
-    team2goals = home_goals(team2)
+    team2goals = away_goals(team2)
     print(team1.name + ' ' + str(team1goals) + '-' + str(team2goals) + ' ' + team2.name)
     # Update stats
     if team1goals > team2goals:
@@ -298,63 +316,21 @@ for q in quarterFinals:
         team2.results.append(0)
         team1.coefficient += 4.5 + (team1goals * 0.75)
         team2.coefficient += 1.5 + (team2goals * 0.75)
-        quarterFinalWinners.append(team1)
+        winner = team1
     elif team1goals < team2goals:
         team1.results.append(0)
         team2.results.append(3)
         team1.coefficient += 1.5 + (team1goals * 0.75)
         team2.coefficient += 4.5 + (team2goals * 0.75)
-        quarterFinalWinners.append(team2)
+        winner = team2
     elif team1goals == team2goals:
         team1.results.append(1)
         team2.results.append(1)
-        team1pens = 0
-        team2pens = 0
-        for i in range(0, 5):
-            team1pen = penalty()
-            team2pen = penalty()
-            if team1pen == 1:
-                team1pens += 1
-            else:
-                continue
-            if team2pen == 1:
-                team2pens += 1
-            else:
-                continue
-        if team1pens > team2pens:
-            print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
-            team1.coefficient += 3.5 + (team1goals * 0.75)
-            team2.coefficient += 2.5 + (team2goals * 0.75)
-            quarterFinalWinners.append(team1)
-        elif team2pens > team1pens:
-            print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
-            team1.coefficient += 2.5 + (team1goals * 0.75)
-            team2.coefficient += 3.5 + (team2goals * 0.75)
-            quarterFinalWinners.append(team2)
-        else:
-            while team1pens == team2pens:
-                team1pen = penalty()
-                team2pen = penalty()
-                if team1pen == 1:
-                    team1pens += 1
-                else:
-                    continue
-                if team2pen == 1:
-                    team2pens += 1
-                else:
-                    continue
-            if team1pens > team2pens:
-                print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
-                team1.coefficient += 3.5 + (team1goals * 0.75)
-                team2.coefficient += 2.5 + (team2goals * 0.75)
-                quarterFinalWinners.append(team1)
-            elif team2pens > team1pens:
-                print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
-                team1.coefficient += 2.5 + (team1goals * 0.75)
-                team2.coefficient += 3.5 + (team2goals * 0.75)
-                quarterFinalWinners.append(team2)
+        # insert penalty function here
+        winner = penalties('qf')
     else:
-        print('error')
+        print('Unexpected match outcome')
+    quarterFinalWinners.append(winner)
     quarterFinalNumber += 1
     quarterFinalRef += 1
 
@@ -383,63 +359,20 @@ for s in semiFinals:
         team2.results.append(0)
         team1.coefficient += 5 + (team1goals * 1)
         team2.coefficient += 2 + (team2goals * 1)
-        semiFinalWinners.append(team1)
+        winner = team1
     elif team1goals < team2goals:
         team1.results.append(0)
         team2.results.append(3)
         team1.coefficient += 2 + (team1goals * 1)
         team2.coefficient += 5 + (team2goals * 1)
-        semiFinalWinners.append(team2)
+        winner = team2
     elif team1goals == team2goals:
         team1.results.append(1)
         team2.results.append(1)
-        team1pens = 0
-        team2pens = 0
-        for i in range(0, 5):
-            team1pen = penalty()
-            team2pen = penalty()
-            if team1pen == 1:
-                team1pens += 1
-            else:
-                continue
-            if team2pen == 1:
-                team2pens += 1
-            else:
-                continue
-        if team1pens > team2pens:
-            print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
-            team1.coefficient += 4 + (team1goals * 1)
-            team2.coefficient += 3 + (team2goals * 1)
-            semiFinalWinners.append(team1)
-        elif team2pens > team1pens:
-            print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
-            team1.coefficient += 3 + (team1goals * 1)
-            team2.coefficient += 4 + (team2goals * 1)
-            semiFinalWinners.append(team2)
-        else:
-            while team1pens == team2pens:
-                team1pen = penalty()
-                team2pen = penalty()
-                if team1pen == 1:
-                    team1pens += 1
-                else:
-                    continue
-                if team2pen == 1:
-                    team2pens += 1
-                else:
-                    continue
-            if team1pens > team2pens:
-                print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
-                team1.coefficient += 4 + (team1goals * 1)
-                team2.coefficient += 3 + (team2goals * 1)
-                semiFinalWinners.append(team1)
-            elif team2pens > team1pens:
-                print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
-                team1.coefficient += 3 + (team1goals * 1)
-                team2.coefficient += 4 + (team2goals * 1)
-                semiFinalWinners.append(team2)
+        penalties('sf')
     else:
-        print('error')
+        print('Unexpected match outcome')
+    semiFinalWinners.append(winner)
     semiFinalNumber += 1
     semiFinalRef += 1
 
@@ -464,63 +397,20 @@ if team1goals > team2goals:
     team2.results.append(0)
     team1.coefficient += 7 + (team1goals * 2)
     team2.coefficient += 3 + (team2goals * 2)
-    finalWinner.append(team1)
+    winner = team1
 elif team1goals < team2goals:
     team1.results.append(0)
     team2.results.append(3)
     team1.coefficient += 3 + (team1goals * 2)
     team2.coefficient += 7 + (team2goals * 2)
-    finalWinner.append(team2)
+    winner = team2
 elif team1goals == team2goals:
     team1.results.append(1)
     team2.results.append(1)
-    team1pens = 0
-    team2pens = 0
-    for i in range(0, 5):
-        team1pen = penalty()
-        team2pen = penalty()
-        if team1pen == 1:
-            team1pens += 1
-        else:
-            continue
-        if team2pen == 1:
-            team2pens += 1
-        else:
-            continue
-    if team1pens > team2pens:
-        print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
-        team1.coefficient += 6 + (team1goals * 2)
-        team2.coefficient += 4 + (team2goals * 2)
-        finalWinner.append(team1)
-    elif team2pens > team1pens:
-        print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
-        team1.coefficient += 4 + (team1goals * 2)
-        team2.coefficient += 6 + (team2goals * 2)
-        finalWinner.append(team2)
-    else:
-        while team1pens == team2pens:
-            team1pen = penalty()
-            team2pen = penalty()
-            if team1pen == 1:
-                team1pens += 1
-            else:
-                continue
-            if team2pen == 1:
-                team2pens += 1
-            else:
-                continue
-        if team1pens > team2pens:
-            print('* ' + team1.name + ' won ' + str(team1pens) + '-' + str(team2pens) + ' on pens')
-            team1.coefficient += 6 + (team1goals * 2)
-            team2.coefficient += 4 + (team2goals * 2)
-            finalWinner.append(team1)
-        elif team2pens > team1pens:
-            print('* ' + team2.name + ' won ' + str(team2pens) + '-' + str(team1pens) + ' on pens')
-            team1.coefficient += 4 + (team1goals * 2)
-            team2.coefficient += 6 + (team2goals * 2)
-            finalWinner.append(team2)
+    penalties('fin')
 else:
-    print('error')
+    print('Unexpected match outcome')
+finalWinner.append(winner)
 
 # Print the winner of the final
 print('\nFinal winner:\n' + finalWinner[0].name)
