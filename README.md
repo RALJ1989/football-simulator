@@ -34,6 +34,7 @@ To-do:
 * store tournament history
 * simulate additional seasons
 * improve result simulator with additional logic (e.g. factor in current league position of each team)
+* improve table sorting logic (add more sort criteria following actual European league rules)
 * improve coefficient calculation with additional logic (e.g. Elo-style scoring system)
 * improve penalty shootout logic (e.g. home/away advantage, teams take penalties in turns)
 * tidy up code
