@@ -27,12 +27,10 @@ This is a 16-team tournament simulation, which:
   * more weighting given to higher profile fixtures
 * updates the strength of each team based on:
   * tournament performance, relative to initial strength
-
-The idea is that this will evolve into a continuous loop, where subsequent tournaments are simulated and teams can improve / decline over time.
+* loops through multiple seasons of the tournament
+* provides a list of historical tournament winners
 
 To-do:
-* store tournament history
-* simulate additional seasons
 * improve result simulator with additional logic (e.g. factor in current league position of each team)
 * improve table sorting logic (add more sort criteria following actual European league rules)
 * improve coefficient calculation with additional logic (e.g. Elo-style scoring system)
