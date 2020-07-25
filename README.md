@@ -35,6 +35,7 @@ To-do:
 * improve table sorting logic (add more sort criteria following actual European league rules)
 * improve coefficient calculation with additional logic (e.g. Elo-style scoring system)
 * improve penalty shootout logic (e.g. home/away advantage, teams take penalties in turns)
+* improve strength updates logic (as currently it causes all teams' strength to converge over time)
 * tidy up code
 
 Long-term:
