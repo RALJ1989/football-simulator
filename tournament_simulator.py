@@ -1,8 +1,16 @@
 #! python3
+# This file contains an engine for simulating the outcome of a 16-team football tournament and extrapolating 
+# over multiple subsequent seasons
 
 import random
-from scoring_algorithms import random_factor, home_goals, away_goals, neutral_goals, penalty, penalties
-from group_structure import groups_table
+import math
+from scoring_algorithms import random_factor, home_goals, away_goals, neutral_goals, group_result, knockout_result, \
+    penalty, penalties
+from group_structure import groups_table, sort_groups
+from squad_algorithms import update_team_strength, update_squads, reset_season_stats
+
+# Define number of seasons to simulate
+number_seasons = 1
 
 
 # Define 'Team' class, which contains team name and team strength
@@ -10,38 +18,42 @@ class Team:
     def __init__(self, name, strength1):
         self.name = name
         self.strength1 = strength1
-        self.strengthFactor = 0.3 + (self.strength1 / 7.5)
-        self.pl = 0
-        self.w = 0
-        self.d = 0
-        self.l = 0
-        self.gf = 0
-        self.ga = 0
-        self.gd = 0
-        self.pts = 0
+        self.strength2 = 0
+        self.bank = int(strength1 / 1.5)
+        self.wages = strength1 * 2
+        self.bank_reserve = math.ceil(self.wages * 0.25)
+        self.strength_factor = 1.0 + ((self.strength1 - 5) / 5.0)
+        self.played_season = 0
+        self.won_season = 0
+        self.drawn_season = 0
+        self.lost_season = 0
+        self.goals_for_season = 0
+        self.goals_against_season = 0
+        self.goal_difference_season = 0
+        self.points_season = 0
         self.results = [0, 0, 1.5, 5, 1]
-        self.coefficient = 0
+        self.coefficient_season = 0
+        self.prize_money_season = 0
+        self.played_forever = 0
+        self.won_forever = 0
+        self.drawn_forever = 0
+        self.lost_forever = 0
+        self.goals_for_forever = 0
+        self.goals_against_forever = 0
+        self.goal_difference_forever = 0
+        self.points_forever = 0
+        self.coefficient_forever = 0
+        self.prize_money_forever = 0
 
     @property
-    def formPoints(self):
+    def recent_form(self):
         return sum(self.results[-5:])
-    def formFactor(self):
-        return 0.7 + 0.6 * (self.formPoints / 15)
-    def lastGameFactor(self):
+
+    def form_factor(self):
+        return 0.6 + 0.8 * (self.recent_form / 15)
+
+    def last_game_factor(self):
         return 0.6 + (0.8 if self.results[-1] == 3 else 0.4 if self.results[-1] == 1 else 0)
-    def strengthEq(self):
-        topCoeff = 55
-        topCoeffStrength = 20
-        highCoeff = 35
-        highCoeffStrength = 15
-        lowCoeff = 6
-        lowCoeffStrength = 5
-        return topCoeffStrength if self.coefficient > topCoeff else \
-            (highCoeffStrength + (((self.coefficient - highCoeff)/(topCoeff - highCoeff))*(topCoeffStrength - highCoeffStrength))) \
-                if self.coefficient > highCoeff else \
-                lowCoeffStrength + (((self.coefficient - lowCoeff)/(highCoeff - lowCoeff))*(highCoeffStrength - lowCoeffStrength))
-    def strength2(self):
-        return round(2*(self.strength1 + ((self.strengthEq() - self.strength1)/10)), 0)/2
 
 
 # Define the initial team names and strengths
@@ -72,264 +84,197 @@ teams = [liverpool, man_city, chelsea, leicester, man_utd, wolves, sheffield_utd
          west_ham, watford]
 sortTeams = sorted(teams, key=lambda team: (-team.strength1, team.name), reverse=False)
 
-# Create an (initially empty) list of winners
+# Create an (initially empty) list of winners to be populated at the end of each season
 tournamentWinners = []
 
-for i in range(99):
+# Find the max length of team names in order to define header width for team names
+sort_teams_string = []
+for t in sortTeams:
+    sort_teams_string.append(t.name)
+max_team_length = len(max(sort_teams_string, key=len))
+team_header_width = max_team_length + 2
+
+# Loop through simulation for each season
+for i in range(number_seasons):
+    print('SEASON ' + str(i+1) + ' BEGINS')
     # Sort all teams randomly
     random.shuffle(sortTeams)
 
     # Split shuffled teams into groups
-    groupA = sortTeams[0:4]
-    groupB = sortTeams[4:8]
-    groupC = sortTeams[8:12]
-    groupD = sortTeams[12:16]
-    allGroups = [groupA, groupB, groupC, groupD]
-    groupNames = ['Group A', 'Group B', 'Group C', 'Group D']
+    group_a = sortTeams[0:4]
+    group_b = sortTeams[4:8]
+    group_c = sortTeams[8:12]
+    group_d = sortTeams[12:16]
+    group_names = [[group_a, 'GROUP A'], [group_b, 'GROUP B'], [group_c, 'GROUP C'], [group_d, 'GROUP D']]
 
-    # Display Groups
-    groupIndex = 0
-    for g in allGroups:
-        groupTeamNames = []
-        print(groupNames[groupIndex] + ': ' + ', '.join(t.name for t in g))
-        groupIndex += 1
-
-    # Find the max length of team names and define team name column width
-    sortTeamsString = []
-    for t in sortTeams:
-        sortTeamsString.append(t.name)
-    maxLength = len(max(sortTeamsString, key=len))
-    desiredLength = maxLength + 2
+    # Display groups and calculate group of death
+    print('\nThe draw has been made!\n')
+    group_of_death = [0, 0]
+    for g in group_names:
+        group_strength = 0
+        print(g[1] + ': ')
+        for t in g[0]:
+            print(t.name)
+            group_strength += t.strength1
+        print('')
+        if group_strength > group_of_death[0]:
+            group_of_death = [group_strength, g[1]]
+        else:
+            continue
+    print('It looks like ' + str(group_of_death[1]) + ' is the group of death!')
 
     # Sort groups
-    tableSort = lambda team: (team.pts, (team.gd, (-team.strength1, team.name)))
-    sortedGroupA = sorted(groupA, key=tableSort, reverse=True)
-    sortedGroupB = sorted(groupB, key=tableSort, reverse=True)
-    sortedGroupC = sorted(groupC, key=tableSort, reverse=True)
-    sortedGroupD = sorted(groupD, key=tableSort, reverse=True)
-    sortedGroups = [sortedGroupA, sortedGroupB, sortedGroupC, sortedGroupD]
+    sorted_groups = sort_groups(group_a, group_b, group_c, group_d)
 
     # Show group tables
-    groups_table(sortedGroups, groupNames, desiredLength)
+    groups_table(sorted_groups, team_header_width)
 
-    # Generate fixtures and scores
-    matchdays = ['Matchday 1', 'Matchday 2', 'Matchday 3', 'Matchday 4', 'Matchday 5', 'Matchday 6']
-    matchdayFixtures = [[[0, 1], [2, 3]], [[3, 0], [1, 2]], [[0, 2], [1, 3]], [[2, 0], [3, 1]], [[1, 0], [3, 2]], [[0, 3], [2, 1]]]
-    matchdayReference = 0
-    for m in matchdays:
-        print('\n' + matchdays[matchdayReference] + ':')
-        groupIndex = 0
-        for g in allGroups:
-            print('\n' + groupNames[groupIndex] + ' fixtures:')
-            for f in range(len(matchdayFixtures[matchdayReference])):
-                homeTeam = allGroups[groupIndex][matchdayFixtures[matchdayReference][f][0]]
-                awayTeam = allGroups[groupIndex][matchdayFixtures[matchdayReference][f][1]]
+    # Group stage fixture format
+    matchday_fixtures = [['Matchday 1', [0, 1], [2, 3]], ['Matchday 2', [3, 0], [1, 2]], ['Matchday 3', [0, 2], [1, 3]],
+                 ['Matchday 4', [2, 0], [3, 1]], ['Matchday 5', [1, 0], [3, 2]], ['Matchday 6', [0, 3], [2, 1]]]
+
+    # Generate fixtures and scores for group stage
+    for m in matchday_fixtures:
+        print('\n' + m[0] + ':')
+        for g in sorted_groups:
+            print('\n' + g[1] + ' fixtures:')
+            for f in (m[1], m[2]):
+                home_team = g[0][f[0]]
+                away_team = g[0][f[1]]
                 # Fixtures
-                print(homeTeam.name + ' vs ' + awayTeam.name)
+                print(home_team.name + ' vs ' + away_team.name)
                 # Scores
-                homeGoals = home_goals(homeTeam)
-                awayGoals = away_goals(awayTeam)
-                print(homeTeam.name + ' ' + str(homeGoals) + '-' + str(awayGoals) + ' ' + awayTeam.name)
-                # Update stats
-                homeTeam.pl += 1
-                homeTeam.gf += homeGoals
-                homeTeam.ga += awayGoals
-                homeTeam.gd += homeGoals - awayGoals
-                awayTeam.pl += 1
-                awayTeam.gf += awayGoals
-                awayTeam.ga += homeGoals
-                awayTeam.gd += awayGoals - homeGoals
-                if homeGoals > awayGoals:
-                    homeTeam.w += 1
-                    homeTeam.pts += 3
-                    homeTeam.results.append(3)
-                    homeTeam.coefficient += 3 + (homeGoals * 0.5)
-                    awayTeam.l += 1
-                    awayTeam.results.append(0)
-                    awayTeam.coefficient += 1 + (awayGoals * 0.5)
-                elif homeGoals < awayGoals:
-                    homeTeam.l += 1
-                    homeTeam.results.append(0)
-                    homeTeam.coefficient += 1 + (homeGoals * 0.5)
-                    awayTeam.w += 1
-                    awayTeam.pts += 3
-                    awayTeam.results.append(3)
-                    awayTeam.coefficient += 3 + (awayGoals * 0.5)
-                elif homeGoals == awayGoals:
-                    homeTeam.d += 1
-                    homeTeam.pts += 1
-                    homeTeam.results.append(1)
-                    homeTeam.coefficient += 2 + (homeGoals * 0.5)
-                    awayTeam.d += 1
-                    awayTeam.pts += 1
-                    awayTeam.results.append(1)
-                    awayTeam.coefficient += 2 + (awayGoals * 0.5)
-                else:
-                    print('Unexpected match outcome')
-            groupIndex += 1
-        matchdayReference += 1
+                group_result(home_team, away_team)
 
-    # Final sort and display group tables
-    sortedGroupA = sorted(groupA, key=tableSort, reverse=True)
-    sortedGroupB = sorted(groupB, key=tableSort, reverse=True)
-    sortedGroupC = sorted(groupC, key=tableSort, reverse=True)
-    sortedGroupD = sorted(groupD, key=tableSort, reverse=True)
-    sortedGroups = [sortedGroupA, sortedGroupB, sortedGroupC, sortedGroupD]
+    # Sort the final group tables, then display them
+    sorted_groups = sort_groups(group_a, group_b, group_c, group_d)
+    groups_table(sorted_groups, team_header_width)
 
-    groups_table(sortedGroups, groupNames, desiredLength)
+    global winner
+    winner = 0
 
-    # Quarter-final fixtures
-    qF1 = [sortedGroupA[0], sortedGroupC[1]]
-    qF2 = [sortedGroupB[0], sortedGroupD[1]]
-    qF3 = [sortedGroupC[0], sortedGroupA[1]]
-    qF4 = [sortedGroupD[0], sortedGroupB[1]]
-    quarterFinals = [qF1, qF2, qF3, qF4]
+    # Define coefficient calculation factors for knockout rounds
+    QF_WIN_FACTOR = 4.5
+    QF_LOSS_FACTOR = 1.5
+    QF_GOAL_FACTOR = 0.75
+    SF_WIN_FACTOR = 5
+    SF_LOSS_FACTOR = 2
+    SF_GOAL_FACTOR = 1
+    F_WIN_FACTOR = 7
+    F_LOSS_FACTOR = 3
+    F_GOAL_FACTOR = 2
 
-    quarterFinalNumber = 1
-    quarterFinalRef = 0
-    quarterFinalWinners = []
-    for q in quarterFinals:
-        team1 = quarterFinals[quarterFinalRef][0]
-        team2 = quarterFinals[quarterFinalRef][1]
-        # Fixture
-        print('\n' + 'Quarter-final ' + str(quarterFinalNumber) + ':\n' + team1.name + ' vs ' + team2.name)
-        # Score
-        team1goals = home_goals(team1)
-        team2goals = away_goals(team2)
-        print(team1.name + ' ' + str(team1goals) + '-' + str(team2goals) + ' ' + team2.name)
-        # Update stats
-        if team1goals > team2goals:
-            team1.results.append(3)
-            team2.results.append(0)
-            team1.coefficient += 4.5 + (team1goals * 0.75)
-            team2.coefficient += 1.5 + (team2goals * 0.75)
-            winner = team1
-        elif team1goals < team2goals:
-            team1.results.append(0)
-            team2.results.append(3)
-            team1.coefficient += 1.5 + (team1goals * 0.75)
-            team2.coefficient += 4.5 + (team2goals * 0.75)
-            winner = team2
-        elif team1goals == team2goals:
-            team1.results.append(1)
-            team2.results.append(1)
-            # winner decided by penalties
-            winner = penalties('qf', team1, team2, team1goals, team2goals)
-        else:
-            print('Unexpected match outcome')
-        quarterFinalWinners.append(winner)
-        quarterFinalNumber += 1
-        quarterFinalRef += 1
+    # Quarter-final fixture format
+    qF1 = [sorted_groups[0][0][0], sorted_groups[2][0][1]]
+    qF2 = [sorted_groups[1][0][0], sorted_groups[3][0][1]]
+    qF3 = [sorted_groups[2][0][0], sorted_groups[0][0][1]]
+    qF4 = [sorted_groups[3][0][0], sorted_groups[1][0][1]]
+    quarter_finals = [[qF1, 1], [qF2, 2], [qF3, 3], [qF4, 4]]
+    quarter_final_winners = []
 
-    print('\nQuarter-final winners:\n' + ', '.join(w.name for w in quarterFinalWinners))
+    # Generate fixtures and scores for quarter-finals
+    for q in quarter_finals:
+        team1 = q[0][0]
+        team2 = q[0][1]
+        # Fixtures
+        print('\n' + 'Quarter-final ' + str(q[1]) + ':\n' + team1.name + ' vs ' + team2.name)
+        # Scores
+        knockout_result(team1, team2, home_goals, away_goals, QF_WIN_FACTOR,
+                        QF_LOSS_FACTOR, QF_GOAL_FACTOR, quarter_final_winners)
 
-    # Semi-final fixtures
-    sF1 = [quarterFinalWinners[0], quarterFinalWinners[1]]
-    sF2 = [quarterFinalWinners[2], quarterFinalWinners[3]]
-    semiFinals = [sF1, sF2]
+    # Display a summary of the quarter-final winners
+    print('\nQuarter-final summary:\n' + ', '.join(w.name.upper() for w in quarter_final_winners[:3]) +
+          ' and ' + quarter_final_winners[3].name.upper() + ' have made it to the Semi-finals!')
 
-    semiFinalNumber = 1
-    semiFinalRef = 0
-    semiFinalWinners = []
+    # Semi-final fixture format
+    sF1 = [quarter_final_winners[0], quarter_final_winners[1]]
+    sF2 = [quarter_final_winners[2], quarter_final_winners[3]]
+    semiFinals = [[sF1, 1], [sF2, 2]]
+    semi_final_winners = []
+
+    # Generate fixtures and scores for semi-finals
     for s in semiFinals:
-        team1 = semiFinals[semiFinalRef][0]
-        team2 = semiFinals[semiFinalRef][1]
-        # Fixture
-        print('\n' + 'Semi-final ' + str(semiFinalNumber) + ':\n' + team1.name + ' vs ' + team2.name)
-        # Score
-        team1goals = neutral_goals(team1)
-        team2goals = neutral_goals(team2)
-        print(team1.name + ' ' + str(team1goals) + '-' + str(team2goals) + ' ' + team2.name)
-        # Update stats
-        if team1goals > team2goals:
-            team1.results.append(3)
-            team2.results.append(0)
-            team1.coefficient += 5 + (team1goals * 1)
-            team2.coefficient += 2 + (team2goals * 1)
-            winner = team1
-        elif team1goals < team2goals:
-            team1.results.append(0)
-            team2.results.append(3)
-            team1.coefficient += 2 + (team1goals * 1)
-            team2.coefficient += 5 + (team2goals * 1)
-            winner = team2
-        elif team1goals == team2goals:
-            team1.results.append(1)
-            team2.results.append(1)
-            # winner decided by penalties
-            winner = penalties('sf', team1, team2, team1goals, team2goals)
-        else:
-            print('Unexpected match outcome')
-        semiFinalWinners.append(winner)
-        semiFinalNumber += 1
-        semiFinalRef += 1
+        team1 = s[0][0]
+        team2 = s[0][1]
+        # Fixtures
+        print('\n' + 'Semi-final ' + str(s[1]) + ':\n' + team1.name + ' vs ' + team2.name)
+        # Scores
+        knockout_result(team1, team2, neutral_goals, neutral_goals, SF_WIN_FACTOR,
+                        SF_LOSS_FACTOR, SF_GOAL_FACTOR, semi_final_winners)
 
-    print('\nSemi-final winners:\n' + ', '.join(w.name for w in semiFinalWinners))
+    # Display a summary of the semi-final winners
+    print('\nSemi-final summary:\n' + ' and '
+          .join(w.name.upper() for w in semi_final_winners) +
+          ' have made it to the Final!')
 
-    # Final fixture
-    team1 = semiFinalWinners[0]
-    team2 = semiFinalWinners[1]
+    # Final fixture format
+    team1 = semi_final_winners[0]
+    team2 = semi_final_winners[1]
+    final_winner = []
 
+    # Print final fixture
     print('\nFinal:\n' + team1.name + ' vs ' + team2.name)
 
-    # Final score
-    team1goals = neutral_goals(team1)
-    team2goals = neutral_goals(team2)
-    print(team1.name + ' ' + str(team1goals) + '-' + str(team2goals) + ' ' + team2.name)
-
-    # Update final stats
-    if team1goals > team2goals:
-        team1.results.append(3)
-        team2.results.append(0)
-        team1.coefficient += 7 + (team1goals * 2)
-        team2.coefficient += 3 + (team2goals * 2)
-        winner = team1
-    elif team1goals < team2goals:
-        team1.results.append(0)
-        team2.results.append(3)
-        team1.coefficient += 3 + (team1goals * 2)
-        team2.coefficient += 7 + (team2goals * 2)
-        winner = team2
-    elif team1goals == team2goals:
-        team1.results.append(1)
-        team2.results.append(1)
-        # winner decided by penalties
-        winner = penalties('fin', team1, team2, team1goals, team2goals)
-    else:
-        print('Unexpected match outcome')
+    # Generate result for final
+    knockout_result(team1, team2, neutral_goals, neutral_goals, F_WIN_FACTOR,
+                    F_LOSS_FACTOR, F_GOAL_FACTOR, final_winner)
 
     # Print the winner of the final
-    print('\nFinal winner:\n' + winner.name)
+    print('\nFinal summary:\n** ' + final_winner[0].name.upper() + ' ** have won the tournament!')
 
     # Update the list of tournament winners
-    tournamentWinners.append(winner.name)
+    tournamentWinners.append([i + 1, final_winner[0].name])
 
-    # Rank the teams by tournament performance (based on coefficients)
-    finalTeamsRanking = []
+    # Rank the teams by tournament performance (based on coefficients) and allocate prize money
+    final_teams_ranking = []
     for t in teams:
-        finalTeamsRanking.append(t)
-    finalTeamsRanking = sorted(finalTeamsRanking, key=lambda team: team.coefficient, reverse=True)
+        final_teams_ranking.append(t)
+    final_teams_ranking = sorted(final_teams_ranking, key=lambda team: team.coefficient_season, reverse=True)
+    prize_money = [45, 40, 36, 34, 28, 27, 26, 25, 19, 18, 17, 16, 15, 14, 13, 12]
     print('\nFinal tournament rankings:')
-    for t in finalTeamsRanking:
-        print(t.name, t.coefficient)
+    # Print the header for the ranking table
+    print('   Team' + ' '*(team_header_width - 3) + 'Score  ' + 'Prize ' + 'Bank')
+    rank = 1
+    for t in final_teams_ranking:
+        t.prize_money_season = prize_money[rank - 1]
+        t.bank += prize_money[rank - 1]
+        print(str(rank) + ' '*(2 - len(str(rank))),
+              t.name + ' '*(team_header_width - len(t.name)),
+              str(t.coefficient_season) + ' '*(6-len(str(t.coefficient_season))),
+              str(t.prize_money_season) + '   ', str(t.bank))
+        rank += 1
 
-    # Display the change in strength of each team based on tournament performance
+    # Calculate change in team strengths based on available finances
+    update_team_strength(final_teams_ranking)
+
+    # Display the change in strength of each team for next season
     print('\nChanges in strength for next season:')
-    for t in finalTeamsRanking:
-        print(t.name, t.strength2(), t.strength2() - t.strength1)
+    update_squads(team_header_width, final_teams_ranking)
 
-    # Reset the stats for next season and update strengths
-    for t in teams:
-        t.strength1 = t.strength2()
-        t.pl = 0
-        t.w = 0
-        t.d = 0
-        t.l = 0
-        t.gf = 0
-        t.ga = 0
-        t.gd = 0
-        t.pts = 0
-        t.results = [0, 0, 1.5, 5, 1]
-        t.coefficient = 0
+    # Reset the stats for next season and update starting values
+    reset_season_stats(teams)
 
-print('\nTournament winners:\n' + str(tournamentWinners))
+    print('')
+
+# Display the all-time winners
+print('All-time tournament winners:')
+for w in tournamentWinners:
+    print('Season ' + str(w[0]) + ':' + ' '*(len(str(number_seasons)) + 1 -len(str(w[0]))) + str(w[1]))
+
+# Display the all-time stats
+print('\nAll-time stats:')
+stats_header = ' '*team_header_width + '| PL   | W    | D    | L    | GF   | GA   | GD   | PTS  | COEFF | PRIZE'
+print(stats_header)
+for t in final_teams_ranking:
+    stats_row = t.name + str(' ')*(team_header_width-len(t.name)) \
+                        + '| ' + str(t.played_forever) + str(' ')*(5-len(str(t.played_forever))) \
+                        + '| ' + str(t.won_forever) + str(' ')*(5-len(str(t.won_forever)))\
+                        + '| ' + str(t.drawn_forever) + str(' ')*(5-len(str(t.drawn_forever)))\
+                        + '| ' + str(t.lost_forever) + str(' ')*(5-len(str(t.lost_forever))) \
+                        + '| ' + str(t.goals_for_forever) + str(' ')*(5-len(str(t.goals_for_forever))) \
+                        + '| ' + str(t.goals_against_forever) + str(' ')*(5-len(str(t.goals_against_forever))) \
+                        + '| ' + str(t.goal_difference_forever) + str(' ')*(5-len(str(t.goal_difference_forever)))\
+                        + '| ' + str(t.points_forever) + str(' ')*(5-len(str(t.points_forever))) \
+                        + '| ' + str(int(t.coefficient_forever)) + str(' ')*(6-len(str(int(t.coefficient_forever))))\
+                        + '| ' + str(t.prize_money_forever) + str(' ')*(4-len(str(t.prize_money_forever)))
+    print(stats_row)

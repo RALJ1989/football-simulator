@@ -25,17 +25,18 @@ This is a 16-team tournament simulation, which:
 * calculates tournament performance for each team using a coefficient system:
   * teams awarded points for positive results, as well as goals
   * more weighting given to higher profile fixtures
-* updates the strength of each team based on:
-  * tournament performance, relative to initial strength
+* awards prize money to teams based on tournament performance
+* updates the strength of each team based on available money in the bank
+  * teams retain a buffer to help them cope with bad seasons
+  * any money available above and beyond the buffer can be used to strengthen the team
+  * negative bank balances result in teams having to sell players
 * loops through multiple seasons of the tournament
-* provides a list of historical tournament winners
+* provides a list of historical tournament winners and match stats
 
 To-do:
 * improve result simulator with additional logic (e.g. factor in current league position of each team)
 * improve table sorting logic (add more sort criteria following actual European league rules)
 * improve coefficient calculation with additional logic (e.g. Elo-style scoring system)
-* improve penalty shootout logic (e.g. home/away advantage, teams take penalties in turns)
-* improve strength updates logic (as currently it causes all teams' strength to converge over time)
 * tidy up code
 
 Long-term:
